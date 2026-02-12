@@ -31,12 +31,14 @@ ls /dev/serial/by-id/
 # Edit docker-compose.yml with your specific device path if different
 
 # 4. Configure device friendly names (optional)
-nano bridge/bridge-config-v2.yaml
+nano bridge/bridge-config.yaml
 
 # 5. Get Thread dataset for commissioning
 docker exec otbr ot-ctl dataset active -x
 
-# 6. Commission your Matter devices
+# 6. Commission your Matter devices using Web UI (recommended)
+# Open http://localhost:5580 in browser
+# Or use chip-tool:
 chip-tool pairing code-thread 4 hex:DATASET_FROM_STEP5 MT:YOUR_PAIRING_CODE
 
 # 7. Monitor MQTT topics to see sensor data
@@ -55,35 +57,30 @@ matter2mqtt/
 ├── LICENSE                      # MIT License
 ├── CONTRIBUTING.md              # Contribution guidelines
 │
-├── bridge/                      # ✅ Current Matter-MQTT bridge (v2)
-│   ├── README.md                # Bridge-specific documentation
-│   ├── matter_mqtt_bridge_v2.py # Bridge application
-│   ├── bridge-config-v2.yaml    # Device friendly name mapping
-│   ├── Dockerfile.bridge-v2     # Docker image
-│   └── docker-compose-v2.yml    # Standalone bridge deployment
+├── bridge/                      # Matter-MQTT bridge
+│   ├── README.md                # Bridge documentation
+│   ├── matter_mqtt_bridge.py    # Bridge application
+│   ├── bridge-config.yaml       # Device friendly name mapping
+│   ├── Dockerfile               # Docker image
+│   └── docker-compose.yml       # Bridge-only deployment
 │
-├── bridge-legacy/               # 📦 Legacy bridge (v1 - node IDs)
-│   └── ...                      # For reference only
-│
-├── config/                      # ⚙️ Configuration templates
-│   ├── bridge-config.yaml.example  # Bridge config template
+├── config/                      # Configuration templates
+│   ├── bridge-config.example.yaml  # Bridge config template
 │   ├── .env.example             # Environment variables template
 │   └── 60-otbr-ipv6.conf        # IPv6 kernel configuration
 │
-├── scripts/                     # 🛠️ Utility scripts
+├── scripts/                     # Essential utility scripts
 │   ├── setup-ipv6.sh            # IPv6 configuration (CRITICAL!)
-│   ├── monitor_sensors.sh       # Monitor IKEA sensors
-│   ├── commission_device.py     # Commission Matter devices
-│   └── ...                      # Other utilities
+│   └── monitor-sensors.sh       # Monitor MQTT sensor data
 │
-├── docs/                        # 📚 Documentation
-│   ├── MATTER_SETUP_ANALYSIS.md    # Complete technical guide
-│   ├── QUICK_START_GUIDE.md        # 5-minute quick start
-│   ├── MQTT_BRIDGE_COMPARISON.md   # Architecture decisions
-│   ├── HABAPP_MQTT_INTEGRATION.md  # HABApp/OpenHAB integration
-│   └── ...                         # Additional guides
+├── docs/                        # Documentation
+│   ├── INTEGRATION.md           # HABApp/OpenHAB integration
+│   └── TROUBLESHOOTING.md       # Common issues and solutions
 │
-└── matter-server-data/          # 💾 Runtime data (persistent)
+├── archive/                     # Historical reference only
+│   └── v1-legacy/               # Original implementation
+│
+└── matter-server-data/          # Runtime data (persistent)
     └── ...                      # Matter server state
 ```
 
@@ -297,7 +294,7 @@ mosquitto_sub -t 'matter/#' -v
 
 ```bash
 # Use the monitoring script
-./scripts/monitor_sensors.sh
+./scripts/monitor-sensors.sh
 
 # Or subscribe to specific topics
 mosquitto_sub -t 'matter/+/temperature' -v
@@ -306,15 +303,21 @@ mosquitto_sub -t 'matter/+/humidity' -v
 
 ### Commission Additional Devices
 
+**Use Matter Server Web UI (recommended):**
+1. Open http://localhost:5580
+2. Click "Commission Device"
+3. Get Thread dataset: `docker exec otbr ot-ctl dataset active -x`
+4. Enter pairing code from device
+5. Wait for completion
+
+**Or use chip-tool:**
 ```bash
-# Each device needs a unique node ID
 chip-tool pairing code-thread 5 hex:DATASET_HEX PAIRING_CODE_DEVICE2
-chip-tool pairing code-thread 6 hex:DATASET_HEX PAIRING_CODE_DEVICE3
 ```
 
 ### Integrate with HABApp/OpenHAB
 
-See detailed guide: [`docs/HABAPP_MQTT_INTEGRATION.md`](docs/HABAPP_MQTT_INTEGRATION.md)
+See detailed guide: [`docs/INTEGRATION.md`](docs/INTEGRATION.md)
 
 Quick example:
 ```python
@@ -376,15 +379,17 @@ docker compose restart
 
 ### Devices Not Appearing in MQTT
 
-```bash
-# Check Matter server sees the device
-docker exec matter-server python3 -c "import asyncio; asyncio.run(print('check'))"
+**First, check Matter Server Web UI:**
+1. Open http://localhost:5580
+2. Verify device is listed and online
 
+**Then check bridge:**
+```bash
 # Check bridge logs
 docker compose logs -f matter-mqtt-bridge
 
-# Verify device is commissioned
-chip-tool pairing read-commissioner-nodeid <node-id>
+# Verify device is in configuration
+cat bridge/bridge-config.yaml
 ```
 
 ### MQTT Connection Failed
@@ -402,15 +407,14 @@ cat .env
 
 ### More Help
 
-See detailed troubleshooting: [`docs/MATTER_SETUP_ANALYSIS.md`](docs/MATTER_SETUP_ANALYSIS.md#troubleshooting)
+See detailed troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](docs/QUICK_START_GUIDE.md)** - 5-minute condensed setup
-- **[Matter Setup Analysis](docs/MATTER_SETUP_ANALYSIS.md)** - Complete 12,000+ word technical guide
-- **[MQTT Bridge Comparison](docs/MQTT_BRIDGE_COMPARISON.md)** - Architecture and design decisions
-- **[HABApp Integration](docs/HABAPP_MQTT_INTEGRATION.md)** - OpenHAB integration examples
-- **[mDNS Discovery Guide](docs/MDNS_DISCOVERY_GUIDE.md)** - How device discovery works
+- **[Integration Guide](docs/INTEGRATION.md)** - HABApp/OpenHAB integration examples
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Bridge README](bridge/README.md)** - Bridge-specific documentation
+- **[Scripts README](scripts/README.md)** - Utility scripts documentation
 
 ### Architecture Overview
 

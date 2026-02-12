@@ -89,7 +89,7 @@ services:
     container_name: matter-mqtt-bridge
     build:
       context: ./bridge
-      dockerfile: Dockerfile.bridge-v2
+      dockerfile: Dockerfile
     restart: unless-stopped
     network_mode: host
     depends_on:
@@ -104,8 +104,8 @@ services:
       - MQTT_BASE_TOPIC=${MQTT_BASE_TOPIC:-matter}
       - CONFIG_FILE=/app/config.yaml
     volumes:
-      # Use v2 config file for IEEE address support
-      - ./bridge/bridge-config-v2.yaml:/app/config.yaml:ro
+      # Bridge configuration with IEEE address support
+      - ./bridge/bridge-config.yaml:/app/config.yaml:ro
     logging:
       driver: json-file
       options:

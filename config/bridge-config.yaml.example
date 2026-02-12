@@ -1,4 +1,4 @@
-# Matter MQTT Bridge Configuration (v2 with Friendly Names)
+# Matter MQTT Bridge Configuration
 # This file maps Node IDs to friendly names (like zigbee2mqtt)
 
 # Device Configuration
