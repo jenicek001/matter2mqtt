@@ -21,7 +21,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: ./bridge
-        file: ./bridge/Dockerfile.bridge-v2
+        file: ./bridge/Dockerfile
         push: false
         tags: matter-mqtt-bridge:test
         cache-from: type=gha
@@ -35,7 +35,7 @@ jobs:
       run: |
         test -f setup.sh
         test -f README.md
-        test -f bridge/matter_mqtt_bridge_v2.py
+        test -f bridge/matter_mqtt_bridge.py
         test -f config/60-otbr-ipv6.conf
         test -f scripts/setup-ipv6.sh
         echo "✅ All required files present"

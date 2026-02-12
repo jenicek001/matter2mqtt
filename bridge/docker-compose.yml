@@ -1,11 +1,11 @@
 #########################################################################################
-# Matter Stack Docker Compose Configuration (v2 with IEEE Address Support)
+# Matter Stack Docker Compose Configuration
 #########################################################################################
 #
 # IMPORTANT: Before starting this stack, you MUST configure IPv6 on the host!
 #
 # Run the setup script first:
-#   sudo ./setup-ipv6.sh
+#   sudo ../scripts/setup-ipv6.sh
 #
 # This is REQUIRED for Thread Border Router to function properly.
 # See 60-otbr-ipv6.conf for details on kernel parameters.
@@ -89,25 +89,22 @@ services:
     container_name: matter-mqtt-bridge
     build:
       context: .
-      dockerfile: Dockerfile.bridge
+      dockerfile: Dockerfile
     restart: unless-stopped
     network_mode: host
     depends_on:
       matter-server:
         condition: service_healthy
     environment:
-      - MATTER_SERVER_URL=ws://localhost:5580/ws
-      - MQTT_BROKER=localhost
-      - MQTT_PORT=1883
+      - MATTER_SERVER_URL=${MATTER_SERVER_URL:-ws://localhost:5580/ws}
+      - MQTT_BROKER=${MQTT_BROKER:-localhost}
+      - MQTT_PORT=${MQTT_PORT:-1883}
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
-      - MQTT_BASE_TOPIC=matter
+      - MQTT_BASE_TOPIC=${MQTT_BASE_TOPIC:-matter}
       - CONFIG_FILE=/app/config.yaml
     volumes:
-      # Use v2 config file for IEEE address support
-      - ./bridge-config-v2.yaml:/app/config.yaml:ro
-      # Or use v1 config for numeric node IDs:
-      # - ./bridge-config.yaml:/app/config.yaml:ro
+      - ./bridge-config.yaml:/app/config.yaml:ro
     logging:
       driver: json-file
       options:
@@ -124,7 +121,7 @@ services:
 #########################################################################################
 #
 # 1. Configure IPv6 (REQUIRED - DO THIS FIRST!):
-#    sudo ./setup-ipv6.sh
+#    sudo ../scripts/setup-ipv6.sh
 #
 # 2. Verify IPv6 configuration:
 #    sysctl net.ipv6.conf.all.forwarding
@@ -135,12 +132,11 @@ services:
 #    - INFRA_IF_NAME (eth0 or wlan0)
 #
 # 4. Create .env file for MQTT credentials (optional):
-#    echo "MQTT_USERNAME=your_user" > .env
-#    echo "MQTT_PASSWORD=your_pass" >> .env
+#    cp ../config/.env.example .env
+#    nano .env
 #
-# 5. Choose bridge version:
-#    - For IEEE addresses (recommended): Use bridge-config-v2.yaml
-#    - For node IDs (legacy): Use bridge-config.yaml
+# 5. Configure device friendly names:
+#    nano bridge-config.yaml
 #
 # 6. Start the stack:
 #    docker compose up -d
@@ -179,7 +175,7 @@ services:
 # 5. Find IEEE addresses in bridge info:
 #    mosquitto_sub -t "matter/bridge/info" -v | jq
 #
-# 6. Update bridge-config-v2.yaml with friendly names:
+# 6. Update bridge-config.yaml with friendly names:
 #    devices:
 #      "0x00124b001f8a9b2c":
 #        friendly_name: "living_room_temp"
@@ -188,22 +184,17 @@ services:
 #    docker compose restart matter-mqtt-bridge
 #
 #########################################################################################
-# Topic Structure Comparison
+# MQTT Topic Structure
 #########################################################################################
 #
-# Version 1 (Node ID based - legacy):
-#   matter/1/temperature      → 22.5
-#   matter/2/air_quality      → "good"
-#   matter/bridge/status      → online
-#
-# Version 2 (IEEE address based - like zigbee2mqtt):
+# IEEE address based topics (like zigbee2mqtt):
 #   matter/0x00124b001f8a9b2c/temperature    → 22.5
 #   matter/living_room_temp/temperature      → 22.5 (if friendly name set)
 #   matter/0x00124b001f8a9b3d/air_quality    → "good"
 #   matter/bridge/state                       → online
 #   matter/bridge/info                        → JSON with all devices
 #
-# Friendly names (v2) make topics more readable and match zigbee2mqtt patterns.
+# Friendly names make topics more readable and match zigbee2mqtt patterns.
 #
 #########################################################################################
 # Troubleshooting
@@ -278,10 +269,10 @@ services:
 #     def __init__(self):
 #         super().__init__()
 #         
-#         # Subscribe using friendly name (configured in bridge-config-v2.yaml)
+#         # Subscribe using friendly name (configured in bridge-config.yaml)
 #         temp_item = MqttItem.get_create_item('matter/living_room_temp/temperature')
 #         temp_item.listen_event(self.on_temperature, ValueUpdateEvent)
 #
-# See HABAPP_MQTT_INTEGRATION.md for complete examples.
+# See ../docs/INTEGRATION.md for complete examples.
 #
 #########################################################################################

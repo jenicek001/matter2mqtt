@@ -300,7 +300,7 @@ show_next_steps() {
     echo "   ${BLUE}chip-tool pairing code-thread 4 hex:<DATASET> <PAIRING_CODE>${NC}"
     echo ""
     echo "5. Configure device friendly names:"
-    echo "   ${BLUE}nano bridge/bridge-config-v2.yaml${NC}"
+    echo "   ${BLUE}nano bridge/bridge-config.yaml${NC}"
     echo ""
     echo "6. Monitor MQTT topics:"
     echo "   ${BLUE}mosquitto_sub -t 'matter/#' -v${NC}"

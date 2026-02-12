@@ -179,7 +179,7 @@ LOG_LEVEL=INFO
 
 ### Step 4: Configure Bridge Device Names
 
-Edit `bridge/bridge-config-v2.yaml` to set friendly names for your devices:
+Edit `bridge/bridge-config.yaml` to set friendly names for your devices:
 
 ```yaml
 devices:

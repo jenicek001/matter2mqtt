@@ -137,7 +137,7 @@ services:
 #    nano .env
 #
 # 5. Configure device friendly names:
-#    nano bridge/bridge-config-v2.yaml
+#    nano bridge/bridge-config.yaml
 #
 # 6. Start the stack:
 #    docker compose up -d
