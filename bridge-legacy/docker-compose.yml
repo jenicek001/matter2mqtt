@@ -1,0 +1,97 @@
+services:
+  # OpenThread Border Router
+  # Bridges Thread mesh network to your Ethernet/WiFi network
+  otbr:
+    container_name: otbr
+    image: openthread/otbr:latest
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    volumes:
+      - /dev:/dev
+    # Using stable device path by-id instead of ttyUSB which can change
+    command: >
+      --radio-url spinel+hdlc+uart:///dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_00ea9af41441ed11975885a7ccf2b06c-if00-port0?uart-baudrate=460800
+    environment:
+      # Change to wlan0 if using WiFi instead of Ethernet
+      - INFRA_IF_NAME=eth0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Python Matter Server - Required for MQTT Bridge
+  # Provides WebSocket API for Matter device control
+  matter-server:
+    container_name: matter-server
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - otbr
+    security_opt:
+      - apparmor=unconfined
+    environment:
+      - TZ=Europe/Prague
+    volumes:
+      - ./matter-server-data:/data
+      - /run/dbus:/run/dbus:ro
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      --storage-path /data
+      --paa-root-cert-dir /data/credentials
+      --bluetooth-adapter 0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Matter to MQTT Bridge
+  # Publishes Matter device states to MQTT for HABApp integration
+  matter-mqtt-bridge:
+    container_name: matter-mqtt-bridge
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - matter-server
+    environment:
+      - MATTER_SERVER_URL=ws://localhost:5580/ws
+      - MQTT_BROKER=localhost
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_BASE_TOPIC=matter
+    volumes:
+      - ./bridge-config-v2.yaml:/app/config.yaml:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Notes:
+# 1. SkyConnect device path uses stable /dev/serial/by-id/ path
+#    This won't change across reboots unlike /dev/ttyUSB0
+#
+# 2. If using WiFi, change INFRA_IF_NAME=eth0 to INFRA_IF_NAME=wlan0
+#
+# 3. For MQTT authentication, create .env file with:
+#    MQTT_USERNAME=your_username
+#    MQTT_PASSWORD=your_password
+#
+# 4. mDNS discovery is handled automatically by:
+#    - avahi-daemon (system service)
+#    - OTBR (advertises Thread network)
+#    - matter-server (discovers Matter devices)
+#
+# Usage:
+#   Start:    docker-compose up -d
+#   Stop:     docker-compose down
+#   Restart:  docker-compose restart
+#   Logs:     docker-compose logs -f
+#   MQTT:     mosquitto_sub -h localhost -t 'matter/#' -v

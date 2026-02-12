@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir \
+    aiohttp \
+    paho-mqtt \
+    pyyaml \
+    asyncio \
+    websockets
+
+# Copy bridge script (v2 with friendly names and all sensors)
+COPY matter_mqtt_bridge_v2.py /app/matter_mqtt_bridge.py
+COPY bridge-config-v2.yaml /app/config.yaml
+
+# Run the bridge
+CMD ["python", "-u", "matter_mqtt_bridge.py"]

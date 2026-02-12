@@ -1,0 +1,287 @@
+#########################################################################################
+# Matter Stack Docker Compose Configuration (v2 with IEEE Address Support)
+#########################################################################################
+#
+# IMPORTANT: Before starting this stack, you MUST configure IPv6 on the host!
+#
+# Run the setup script first:
+#   sudo ./setup-ipv6.sh
+#
+# This is REQUIRED for Thread Border Router to function properly.
+# See 60-otbr-ipv6.conf for details on kernel parameters.
+#
+#########################################################################################
+
+services:
+  #
+  # OpenThread Border Router (OTBR)
+  # Bridges Thread mesh network (802.15.4) to Ethernet/WiFi (IPv6)
+  #
+  otbr:
+    container_name: otbr
+    image: openthread/otbr:latest
+    restart: unless-stopped
+    network_mode: host  # Required for IPv6 routing and mDNS
+    privileged: true   # Required for Thread radio access
+    volumes:
+      - /dev:/dev
+    # Using stable device path by-id instead of ttyUSB which can change
+    # Update this path if your SkyConnect has a different serial ID
+    command: >
+      --radio-url spinel+hdlc+uart:///dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_00ea9af41441ed11975885a7ccf2b06c-if00-port0?uart-baudrate=460800
+    environment:
+      # Infrastructure interface - Change to wlan0 if using WiFi
+      - INFRA_IF_NAME=eth0
+      # Logging level (DEBUG, INFO, WARNING, ERROR)
+      - OTBR_LOG_LEVEL=INFO
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "ot-ctl", "state"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  #
+  # Python Matter Server
+  # Provides WebSocket API for Matter device control and monitoring
+  # NOTE: This project is in maintenance mode, being replaced by matter.js
+  #
+  matter-server:
+    container_name: matter-server
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    restart: unless-stopped
+    network_mode: host  # Required for mDNS device discovery
+    depends_on:
+      otbr:
+        condition: service_healthy
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ./matter-server-data:/data
+      - /run/dbus:/run/dbus:ro  # For Bluetooth (if needed)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5580/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  #
+  # Matter to MQTT Bridge (v2 with IEEE Address Support)
+  # Publishes Matter device states to MQTT using IEEE addresses (like zigbee2mqtt)
+  #
+  # Topics created:
+  #   matter/<ieee_or_friendly_name>/temperature
+  #   matter/<ieee_or_friendly_name>/humidity
+  #   matter/<ieee_or_friendly_name>/availability
+  #   matter/bridge/state
+  #   matter/bridge/info
+  #
+  matter-mqtt-bridge:
+    container_name: matter-mqtt-bridge
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      matter-server:
+        condition: service_healthy
+    environment:
+      - MATTER_SERVER_URL=ws://localhost:5580/ws
+      - MQTT_BROKER=localhost
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_BASE_TOPIC=matter
+      - CONFIG_FILE=/app/config.yaml
+    volumes:
+      # Use v2 config file for IEEE address support
+      - ./bridge-config-v2.yaml:/app/config.yaml:ro
+      # Or use v1 config for numeric node IDs:
+      # - ./bridge-config.yaml:/app/config.yaml:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.connect(('localhost',1883)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+#########################################################################################
+# Setup Instructions
+#########################################################################################
+#
+# 1. Configure IPv6 (REQUIRED - DO THIS FIRST!):
+#    sudo ./setup-ipv6.sh
+#
+# 2. Verify IPv6 configuration:
+#    sysctl net.ipv6.conf.all.forwarding
+#    sysctl net.ipv6.conf.eth0.accept_ra  (or wlan0 for WiFi)
+#
+# 3. Update device paths in this file if needed:
+#    - SkyConnect serial path in otbr.command
+#    - INFRA_IF_NAME (eth0 or wlan0)
+#
+# 4. Create .env file for MQTT credentials (optional):
+#    echo "MQTT_USERNAME=your_user" > .env
+#    echo "MQTT_PASSWORD=your_pass" >> .env
+#
+# 5. Choose bridge version:
+#    - For IEEE addresses (recommended): Use bridge-config-v2.yaml
+#    - For node IDs (legacy): Use bridge-config.yaml
+#
+# 6. Start the stack:
+#    docker compose up -d
+#
+# 7. Check all services are healthy:
+#    docker compose ps
+#
+# 8. View logs:
+#    docker compose logs -f
+#
+# 9. Monitor MQTT topics:
+#    mosquitto_sub -h localhost -t 'matter/#' -v
+#
+#########################################################################################
+# Device Discovery and Configuration
+#########################################################################################
+#
+# After starting the stack:
+#
+# 1. Wait 30 seconds for OTBR to initialize
+#
+# 2. Check Thread network status:
+#    docker exec -it otbr ot-ctl state
+#    docker exec -it otbr ot-ctl dataset active
+#
+# 3. Commission your IKEA devices:
+#    # Get pairing code from device or packaging
+#    chip-tool pairing code-thread <NODE_ID> hex:<DATASET> <PAIRING_CODE>
+#
+#    Example:
+#    chip-tool pairing code-thread 1 hex:0e080000000000010000000300001335060004001fffe00208f6... 34970112332
+#
+# 4. Check Matter server discovered the device:
+#    docker logs matter-server | grep -i commissioned
+#
+# 5. Find IEEE addresses in bridge info:
+#    mosquitto_sub -t "matter/bridge/info" -v | jq
+#
+# 6. Update bridge-config-v2.yaml with friendly names:
+#    devices:
+#      "0x00124b001f8a9b2c":
+#        friendly_name: "living_room_temp"
+#
+# 7. Restart bridge to apply config:
+#    docker compose restart matter-mqtt-bridge
+#
+#########################################################################################
+# Topic Structure Comparison
+#########################################################################################
+#
+# Version 1 (Node ID based - legacy):
+#   matter/1/temperature      → 22.5
+#   matter/2/air_quality      → "good"
+#   matter/bridge/status      → online
+#
+# Version 2 (IEEE address based - like zigbee2mqtt):
+#   matter/0x00124b001f8a9b2c/temperature    → 22.5
+#   matter/living_room_temp/temperature      → 22.5 (if friendly name set)
+#   matter/0x00124b001f8a9b3d/air_quality    → "good"
+#   matter/bridge/state                       → online
+#   matter/bridge/info                        → JSON with all devices
+#
+# Friendly names (v2) make topics more readable and match zigbee2mqtt patterns.
+#
+#########################################################################################
+# Troubleshooting
+#########################################################################################
+#
+# Container won't start:
+#   - Check IPv6 is configured: sysctl net.ipv6.conf.all.forwarding
+#   - Verify SkyConnect path: ls -l /dev/serial/by-id/
+#   - Check logs: docker compose logs <service_name>
+#
+# No Thread network:
+#   - Check OTBR state: docker exec -it otbr ot-ctl state
+#   - Should show "leader" or "router"
+#   - Check IPv6 routes: ip -6 route | grep wpan0
+#
+# Matter devices not found:
+#   - Check mDNS: avahi-browse -a -r -t
+#   - Verify Thread network: docker exec -it otbr ot-ctl networkname
+#   - Check Matter server: docker logs matter-server
+#
+# MQTT not publishing:
+#   - Test MQTT broker: mosquitto_sub -h localhost -t 'matter/#' -v
+#   - Check bridge logs: docker logs matter-mqtt-bridge
+#   - Verify matter-server connection: docker logs matter-mqtt-bridge | grep WebSocket
+#
+# Performance issues:
+#   - Monitor resources: docker stats
+#   - Check network: ip -6 neigh show
+#   - Enable debug logging: Set OTBR_LOG_LEVEL=DEBUG
+#
+#########################################################################################
+# Maintenance Commands
+#########################################################################################
+#
+# View all service status:
+#   docker compose ps
+#
+# Restart specific service:
+#   docker compose restart otbr
+#   docker compose restart matter-server
+#   docker compose restart matter-mqtt-bridge
+#
+# View real-time logs:
+#   docker compose logs -f
+#   docker compose logs -f otbr
+#   docker compose logs -f matter-mqtt-bridge
+#
+# Stop all services:
+#   docker compose down
+#
+# Stop and remove data (CAREFUL - deletes commissioned devices!):
+#   docker compose down -v
+#
+# Update images:
+#   docker compose pull
+#   docker compose up -d
+#
+# Rebuild bridge:
+#   docker compose build matter-mqtt-bridge
+#   docker compose up -d matter-mqtt-bridge
+#
+#########################################################################################
+# Integration with HABApp
+#########################################################################################
+#
+# Your HABApp rules can now use stable IEEE-based topics:
+#
+# from HABApp import Rule
+# from HABApp.mqtt.items import MqttItem
+#
+# class TemperatureMonitor(Rule):
+#     def __init__(self):
+#         super().__init__()
+#         
+#         # Subscribe using friendly name (configured in bridge-config-v2.yaml)
+#         temp_item = MqttItem.get_create_item('matter/living_room_temp/temperature')
+#         temp_item.listen_event(self.on_temperature, ValueUpdateEvent)
+#
+# See HABAPP_MQTT_INTEGRATION.md for complete examples.
+#
+#########################################################################################

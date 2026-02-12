@@ -1,0 +1,157 @@
+#########################################################################################
+# Matter Stack Docker Compose Configuration
+#########################################################################################
+#
+# IMPORTANT: Before starting this stack, you MUST configure IPv6 on the host!
+#
+# Run the setup script first:
+#   sudo ./scripts/setup-ipv6.sh
+#
+# This is REQUIRED for Thread Border Router to function properly.
+# See config/60-otbr-ipv6.conf for details on kernel parameters.
+#
+#########################################################################################
+
+services:
+  #
+  # OpenThread Border Router (OTBR)
+  # Bridges Thread mesh network (802.15.4) to Ethernet/WiFi (IPv6)
+  #
+  otbr:
+    container_name: otbr
+    image: openthread/otbr:latest
+    restart: unless-stopped
+    network_mode: host  # Required for IPv6 routing and mDNS
+    privileged: true   # Required for Thread radio access
+    volumes:
+      - /dev:/dev
+    # Using stable device path by-id instead of ttyUSB which can change
+    # Update this path if your SkyConnect has a different serial ID
+    command: >
+      --radio-url spinel+hdlc+uart:///dev/serial/by-id/usb-Nabu_Casa_SkyConnect_v1.0_00ea9af41441ed11975885a7ccf2b06c-if00-port0?uart-baudrate=460800
+    environment:
+      # Infrastructure interface - Change to wlan0 if using WiFi
+      - INFRA_IF_NAME=eth0
+      # Logging level (DEBUG, INFO, WARNING, ERROR)
+      - OTBR_LOG_LEVEL=${LOG_LEVEL:-INFO}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "ot-ctl", "state"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  #
+  # Python Matter Server
+  # Provides WebSocket API for Matter device control and monitoring
+  # NOTE: This project is in maintenance mode, being replaced by matter.js
+  #
+  matter-server:
+    container_name: matter-server
+    image: ghcr.io/home-assistant-libs/python-matter-server:stable
+    restart: unless-stopped
+    network_mode: host  # Required for mDNS device discovery
+    depends_on:
+      otbr:
+        condition: service_healthy
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - ./matter-server-data:/data
+      - /run/dbus:/run/dbus:ro  # For Bluetooth (if needed)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5580/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  #
+  # Matter to MQTT Bridge (v2 with IEEE Address Support)
+  # Publishes Matter device states to MQTT using IEEE addresses (like zigbee2mqtt)
+  #
+  # Topics created:
+  #   matter/<ieee_or_friendly_name>/temperature
+  #   matter/<ieee_or_friendly_name>/humidity
+  #   matter/<ieee_or_friendly_name>/availability
+  #   matter/bridge/state
+  #   matter/bridge/info
+  #
+  matter-mqtt-bridge:
+    container_name: matter-mqtt-bridge
+    build:
+      context: ./bridge
+      dockerfile: Dockerfile.bridge-v2
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      matter-server:
+        condition: service_healthy
+    environment:
+      - MATTER_SERVER_URL=${MATTER_SERVER_URL:-ws://localhost:5580/ws}
+      - MQTT_BROKER=${MQTT_BROKER:-localhost}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_BASE_TOPIC=${MQTT_BASE_TOPIC:-matter}
+      - CONFIG_FILE=/app/config.yaml
+    volumes:
+      # Use v2 config file for IEEE address support
+      - ./bridge/bridge-config-v2.yaml:/app/config.yaml:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s=socket.socket(); s.connect(('localhost',1883)); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+#########################################################################################
+# Setup Instructions
+#########################################################################################
+#
+# 1. Configure IPv6 (REQUIRED - DO THIS FIRST!):
+#    sudo ./scripts/setup-ipv6.sh
+#
+# 2. Verify IPv6 configuration:
+#    sysctl net.ipv6.conf.all.forwarding
+#    sysctl net.ipv6.conf.eth0.accept_ra  (or wlan0 for WiFi)
+#
+# 3. Update device paths in this file if needed:
+#    - SkyConnect serial path in otbr.command
+#    - INFRA_IF_NAME (eth0 or wlan0)
+#
+# 4. Create .env file for MQTT credentials (optional):
+#    cp config/.env.example .env
+#    nano .env
+#
+# 5. Configure device friendly names:
+#    nano bridge/bridge-config-v2.yaml
+#
+# 6. Start the stack:
+#    docker compose up -d
+#
+# 7. Check all services are healthy:
+#    docker compose ps
+#
+# 8. View logs:
+#    docker compose logs -f
+#
+# 9. Commission devices:
+#    See README.md Step 8
+#
+# 10. Monitor MQTT:
+#    mosquitto_sub -t 'matter/#' -v
+#
+#########################################################################################

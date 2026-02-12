@@ -1,0 +1,81 @@
+# Matter MQTT Bridge Configuration (v2 with Friendly Names)
+# This file maps Node IDs to friendly names (like zigbee2mqtt)
+
+# Device Configuration
+# Use node_id as the key, set friendly names
+devices:
+  # IKEA Alpstuga (Air Quality sensor) - Node 4
+  4:
+    friendly_name: "alpstuga"
+    description: "IKEA Alpstuga air quality monitor"
+    location: "To be configured"
+    
+  # IKEA Timmerflotte (Temperature + Humidity sensor) - Node 5 (not yet commissioned)
+  # 5:
+  #   friendly_name: "timmerflotte"
+  #   description: "IKEA Timmerflotte temp/humidity"
+  #   location: "To be configured"
+
+# MQTT Configuration (optional, can also use environment variables)
+mqtt:
+  broker: localhost
+  port: 1883
+  username: null  # Set if authentication required
+  password: null  # Set if authentication required
+  base_topic: matter  # Will create topics like matter/<ieee>/temperature
+  
+# Bridge Options
+bridge:
+  # How often to publish bridge info (seconds)
+  info_interval: 60
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  log_level: INFO
+  
+  # Availability check interval (seconds)
+  # Marks devices offline if no updates received
+  availability_timeout: 300  # 5 minutes
+  
+# Topic Mapping Examples
+# With friendly names configured above, you'll get topics like:
+#
+#   matter/living_room_temp/temperature    → 22.5
+#   matter/living_room_temp/humidity       → 45.2
+#   matter/living_room_temp/battery        → 85
+#   matter/living_room_temp/availability   → online
+#
+#   matter/bedroom_air/air_quality         → "good"
+#   matter/bedroom_air/availability        → online
+#
+#   matter/0x00124b001a2b3c4d/temperature  → 21.3  (no friendly name)
+#
+# Bridge status topics (like zigbee2mqtt):
+#   matter/bridge/state                    → online/offline
+#   matter/bridge/info                     → JSON with all devices
+#   matter/bridge/devices                  → Device events (joined/left)
+#   matter/bridge/config/devices           → Array of device names
+
+# Discovery Instructions
+#
+# 1. Start the bridge without device config:
+#    docker compose up -d matter-mqtt-bridge
+#
+# 2. Check bridge info to find IEEE addresses:
+#    mosquitto_sub -t "matter/bridge/info" -v
+#
+# 3. Copy IEEE addresses from bridge info
+#
+# 4. Update this config file with friendly names
+#
+# 5. Restart bridge:
+#    docker compose restart matter-mqtt-bridge
+#
+# 6. Topics will now use friendly names instead of IEEE addresses
+
+# Migrating from v1 (node ID based topics)
+#
+# Old topics:  matter/1/temperature
+# New topics:  matter/living_room_temp/temperature
+#
+# Update your HABApp rules to use new topic patterns.
+# IEEE addresses are stable - won't change when devices are re-commissioned.

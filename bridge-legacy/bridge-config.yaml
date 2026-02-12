@@ -1,0 +1,95 @@
+# Matter to MQTT Bridge Configuration
+# Edit this file to customize device mappings and behavior
+
+# Device-specific mappings (optional)
+# Override default MQTT topics for specific devices
+devices:
+  # Example: Node ID 1 (Timmerflotte temperature sensor)
+  1:
+    name: "Living Room Temperature"
+    friendly_id: "living_room_temp"
+    # Custom MQTT topics (optional)
+    # temperature_topic: "home/living_room/temperature"
+    # humidity_topic: "home/living_room/humidity"
+  
+  # Example: Node ID 2 (Alpstuga air quality sensor)
+  2:
+    name: "Living Room Air Quality"
+    friendly_id: "living_room_air"
+    # air_quality_topic: "home/living_room/air_quality"
+
+# MQTT topic structure
+# Default: matter/<node_id>/<sensor_type>
+# 
+# Published topics:
+#   matter/1/temperature     - Temperature in °C
+#   matter/1/humidity        - Humidity in %
+#   matter/2/air_quality     - Air quality (good/fair/moderate/poor/etc)
+#   matter/1/battery         - Battery level in %
+#   matter/<id>/state        - Device state (ON/OFF)
+#   matter/bridge/status     - Bridge status (online/offline)
+#   matter/bridge/info       - Bridge information
+#   matter/bridge/devices    - Device add/remove events
+#
+# Subscribe topics (for commands):
+#   matter/<node_id>/set/onoff/on      - Turn device on
+#   matter/<node_id>/set/onoff/off     - Turn device off
+#   matter/<node_id>/set/onoff/toggle  - Toggle device
+
+# HABApp Integration Examples:
+# 
+# In your HABApp Python rule:
+#
+# from HABApp import Rule
+# from HABApp.openhab.items import Thing
+# from HABApp.mqtt.items import MqttItem
+#
+# class MatterSensorRule(Rule):
+#     def __init__(self):
+#         super().__init__()
+#         
+#         # Subscribe to temperature updates
+#         temp_item = MqttItem.get_create_item('matter/1/temperature')
+#         temp_item.listen_event(self.on_temperature_update, ValueUpdateEvent)
+#         
+#         # Subscribe to air quality updates
+#         air_item = MqttItem.get_create_item('matter/2/air_quality')
+#         air_item.listen_event(self.on_air_quality_update, ValueUpdateEvent)
+#     
+#     def on_temperature_update(self, event):
+#         import json
+#         data = json.loads(event.value)
+#         temp = data['temperature']
+#         self.log.info(f"Temperature: {temp}°C")
+#         
+#         # Your automation logic here
+#         if temp > 25:
+#             # Trigger cooling
+#             pass
+#     
+#     def on_air_quality_update(self, event):
+#         import json
+#         data = json.loads(event.value)
+#         quality = data['quality']
+#         self.log.info(f"Air Quality: {quality}")
+#         
+#         # Your automation logic here
+#         if quality in ['poor', 'very_poor']:
+#             # Trigger ventilation
+#             pass
+#
+# MatterSensorRule()
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR
+  
+# Update intervals (seconds)
+intervals:
+  bridge_status: 60  # How often to publish bridge status
+  
+# Retain MQTT messages
+retain:
+  sensor_values: true    # Retain sensor readings
+  bridge_status: true    # Retain bridge status
+  device_state: true     # Retain device states
