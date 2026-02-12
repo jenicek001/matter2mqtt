@@ -1,0 +1,41 @@
+name: Docker Build Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Matter-MQTT Bridge
+      uses: docker/build-push-action@v5
+      with:
+        context: ./bridge
+        file: ./bridge/Dockerfile.bridge-v2
+        push: false
+        tags: matter-mqtt-bridge:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Test Docker Compose syntax
+      run: |
+        docker compose -f docker-compose.yml config
+        
+    - name: Verify required files
+      run: |
+        test -f setup.sh
+        test -f README.md
+        test -f bridge/matter_mqtt_bridge_v2.py
+        test -f config/60-otbr-ipv6.conf
+        test -f scripts/setup-ipv6.sh
+        echo "✅ All required files present"
