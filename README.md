@@ -18,30 +18,42 @@ A complete Matter stack setup for Raspberry Pi with Thread Border Router (OTBR),
 Get up and running in 15 minutes:
 
 ```bash
-# 1. Clone or navigate to this repository
-cd /path/to/Matter
+# 1. Clone this repository
+git clone https://github.com/jenicek001/matter2mqtt.git
+cd matter2mqtt
 
 # 2. Run the automated setup script
+# This will install dependencies, configure IPv6, and set up the stack
 ./setup.sh
 
-# 3. Start the Matter stack
-docker compose up -d
+# 3. Update device paths if needed (check your SkyConnect/Thread radio)
+ls /dev/serial/by-id/
+# Edit docker-compose.yml with your specific device path if different
 
-# 4. Verify all services are running
-docker compose ps
+# 4. Configure device friendly names (optional)
+nano bridge/bridge-config-v2.yaml
 
-# 5. Monitor MQTT topics
+# 5. Get Thread dataset for commissioning
+docker exec otbr ot-ctl dataset active -x
+
+# 6. Commission your Matter devices
+chip-tool pairing code-thread 4 hex:DATASET_FROM_STEP5 MT:YOUR_PAIRING_CODE
+
+# 7. Monitor MQTT topics to see sensor data
 mosquitto_sub -t 'matter/#' -v
 ```
+
+**Note:** The `setup.sh` script handles all prerequisites including Docker, MQTT broker, IPv6 configuration, and can optionally start the stack. If you already have Docker and dependencies installed, you can skip specific steps with flags (see `./setup.sh --help`).
 
 ## 📦 What's in This Repository
 
 ```
-Matter/
+matter2mqtt/
 ├── README.md                    # This file - main documentation
-├── setup.sh                     # Automated setup script (NEW!)
+├── setup.sh                     # Automated setup script
 ├── docker-compose.yml           # Main Docker stack configuration
-├── .env                         # Your environment configuration  
+├── LICENSE                      # MIT License
+├── CONTRIBUTING.md              # Contribution guidelines
 │
 ├── bridge/                      # ✅ Current Matter-MQTT bridge (v2)
 │   ├── README.md                # Bridge-specific documentation
