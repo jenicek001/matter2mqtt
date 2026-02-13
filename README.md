@@ -33,13 +33,13 @@ ls /dev/serial/by-id/
 # 4. Configure device friendly names (optional)
 nano bridge/bridge-config.yaml
 
-# 5. Get Thread dataset for commissioning
+# 5. Get Thread dataset for commissioning (Thread devices)
 docker exec otbr ot-ctl dataset active -x
 
 # 6. Commission your Matter devices using Web UI (recommended)
 # Open http://localhost:5580 in browser
-# Or use chip-tool:
-chip-tool pairing code-thread 4 hex:DATASET_FROM_STEP5 MT:YOUR_PAIRING_CODE
+# Paste the dataset from step 5 when prompted
+# IKEA pairing codes: enter digits only (no dashes/spaces)
 
 # 7. Monitor MQTT topics to see sensor data
 mosquitto_sub -t 'matter/#' -v
@@ -65,7 +65,7 @@ matter2mqtt/
 │   └── docker-compose.yml       # Bridge-only deployment
 │
 ├── config/                      # Configuration templates
-│   ├── bridge-config.example.yaml  # Bridge config template
+│   ├── bridge-config.yaml.example  # Bridge config template
 │   ├── .env.example             # Environment variables template
 │   └── 60-otbr-ipv6.conf        # IPv6 kernel configuration
 │
@@ -74,6 +74,7 @@ matter2mqtt/
 │   └── monitor-sensors.sh       # Monitor MQTT sensor data
 │
 ├── docs/                        # Documentation
+│   ├── COMMISSIONING.md         # Device commissioning (Web UI)
 │   ├── INTEGRATION.md           # HABApp/OpenHAB integration
 │   └── TROUBLESHOOTING.md       # Common issues and solutions
 │
@@ -177,6 +178,8 @@ MQTT_BASE_TOPIC=matter
 LOG_LEVEL=INFO
 ```
 
+**MQTT config precedence:** environment variables override the `mqtt:` section in `bridge/bridge-config.yaml`.
+
 ### Step 4: Configure Bridge Device Names
 
 Edit `bridge/bridge-config.yaml` to set friendly names for your devices:
@@ -256,24 +259,18 @@ ip -6 route | grep wpan0
 # Should show Thread network routes (fd00::/64 prefix)
 ```
 
-### Step 8: Commission Matter Devices
+### Step 8: Commission Matter Devices (Web UI)
 
-```bash
-# Get the Thread network dataset (needed for commissioning)
-docker exec otbr ot-ctl dataset active -x
-# Copy the hex output
+1. Get the Thread dataset:
+  ```bash
+  docker exec otbr ot-ctl dataset active -x
+  ```
+2. Open http://localhost:5580
+3. Click "Commission Device"
+4. Paste the dataset when prompted
+5. Enter the pairing code from the device label
 
-# Commission a device using the pairing code from device packaging
-# Format: chip-tool pairing code-thread <node-id> hex:<dataset> <pairing-code>
-chip-tool pairing code-thread 4 hex:PASTE_DATASET_HERE MT:YOUR_PAIRING_CODE
-
-# Wait 10-30 seconds for commissioning to complete
-# Look for "Device commissioning completed with success"
-```
-
-**Finding Pairing Codes:**
-- IKEA devices: Check QR code on packaging or device
-- Format usually: `MT:XXXXX-XXXXX-XXXXX`
+**IKEA pairing codes:** labels often show `MT:12345678901` -> enter digits only (no dashes/spaces).
 
 ### Step 9: Verify MQTT Topics
 
@@ -307,8 +304,10 @@ mosquitto_sub -t 'matter/+/humidity' -v
 1. Open http://localhost:5580
 2. Click "Commission Device"
 3. Get Thread dataset: `docker exec otbr ot-ctl dataset active -x`
-4. Enter pairing code from device
-5. Wait for completion
+4. Paste the dataset when prompted
+5. Enter pairing code from device
+  - IKEA labels: digits only (no dashes/spaces)
+6. Wait for completion
 
 **Or use chip-tool:**
 ```bash
@@ -411,6 +410,7 @@ See detailed troubleshooting: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.m
 
 ## 📚 Documentation
 
+- **[Commissioning](docs/COMMISSIONING.md)** - Web UI commissioning steps
 - **[Integration Guide](docs/INTEGRATION.md)** - HABApp/OpenHAB integration examples
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Bridge README](bridge/README.md)** - Bridge-specific documentation

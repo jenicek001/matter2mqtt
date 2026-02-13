@@ -57,9 +57,7 @@ matter/alpstuga/availability online
 
 ## Device Commissioning
 
-**Removed scripts: commission_device.py, commission_simple.py**
-
-**Use the Matter Server Web UI instead:**
+**Use the Matter Server Web UI (primary method):**
 
 1. Open http://localhost:5580 in your browser
 2. Click "Commission Device"
@@ -67,8 +65,10 @@ matter/alpstuga/availability online
    ```bash
    docker exec otbr ot-ctl dataset active -x
    ```
-4. Enter the pairing code from your device (format: `MT:XXXXX-XXXXX-XXXXX`)
-5. Wait 30-60 seconds for commissioning to complete
+4. Paste the dataset when prompted
+5. Enter the pairing code from your device
+   - IKEA labels often show `MT:12345678901` -> enter digits only (no dashes/spaces)
+6. Wait 30-60 seconds for commissioning to complete
 
 The Web UI provides a better experience with real-time status, error messages, and device management.
 

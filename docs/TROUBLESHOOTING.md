@@ -109,8 +109,10 @@ docker exec otbr ot-ctl state
 1. Open http://localhost:5580 in browser
 2. Click "Commission Device"
 3. Get Thread dataset: `docker exec otbr ot-ctl dataset active -x`
-4. Enter pairing code from device packaging
-5. Wait 30-60 seconds
+4. Paste the dataset when prompted
+5. Enter pairing code from device packaging
+   - IKEA labels often show `MT:12345678901` -> enter digits only (no dashes/spaces)
+6. Wait 30-60 seconds
 
 **If Web UI doesn't work:**
 ```bash

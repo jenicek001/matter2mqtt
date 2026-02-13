@@ -5,11 +5,16 @@
 # Use node_id as the key, set friendly names
 devices:
   # IKEA Alpstuga (Air Quality sensor) - Node 4
-  4:
+  21:
     friendly_name: "alpstuga"
-    description: "IKEA Alpstuga air quality monitor"
-    location: "To be configured"
-    
+    description: "IKEA ALPSTUGA air quality monitor"
+    location: "[Palac] Obývák"
+  
+  23:
+    friendly_name: "timmerflotte"
+    description: "IKEA TIMMERFLOTTE"
+    location: "[Palac] Dětský pokoj"
+
   # IKEA Timmerflotte (Temperature + Humidity sensor) - Node 5 (not yet commissioned)
   # 5:
   #   friendly_name: "timmerflotte"
@@ -17,6 +22,7 @@ devices:
   #   location: "To be configured"
 
 # MQTT Configuration (optional, can also use environment variables)
+# NOTE: Environment variables override values here.
 mqtt:
   broker: localhost
   port: 1883

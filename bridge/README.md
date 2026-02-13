@@ -53,6 +53,14 @@ matter/bridge/state                 → online
 matter/bridge/info                  → {"state": "online", "devices": [...]}
 ```
 
+## MQTT Settings (Env vs Config)
+
+The bridge loads MQTT settings from environment variables first (via `docker-compose.yml` and optional `.env`).
+If a value is not provided via environment variables, the bridge falls back to the `mqtt:` section in
+`bridge-config.yaml`.
+
+**Recommended:** use `.env` for secrets (username/password) and keep `bridge-config.yaml` for device mapping.
+
 ## Environment Variables
 
 Configure via environment variables or `.env` file:
