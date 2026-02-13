@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir \
     websockets
 
 # Copy bridge script (v2 with IEEE address support)
-COPY matter_mqtt_bridge_v2.py /app/matter_mqtt_bridge.py
-COPY bridge-config-v2.yaml /app/config.yaml
+COPY matter_mqtt_bridge.py /app/matter_mqtt_bridge.py
+COPY bridge-config.yaml /app/config.yaml
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
