@@ -25,6 +25,7 @@ services:
     privileged: true   # Required for Thread radio access
     volumes:
       - /dev:/dev
+      - ./otbr-data:/var/lib/thread  # PERSISTENT STORAGE - Thread network config survives restarts
     # Using stable device path by-id instead of ttyUSB which can change
     # Update this path if your SkyConnect has a different serial ID
     command: >
@@ -32,6 +33,8 @@ services:
     environment:
       # Infrastructure interface - Change to wlan0 if using WiFi
       - INFRA_IF_NAME=eth0
+      # Disable OTBR firewall to avoid ip6tables/ipset kernel mismatches
+      - FIREWALL=0
       # Logging level (DEBUG, INFO, WARNING, ERROR)
       - OTBR_LOG_LEVEL=${LOG_LEVEL:-INFO}
     logging:
@@ -60,19 +63,28 @@ services:
         condition: service_healthy
     security_opt:
       - apparmor=unconfined
+    cap_add:
+      - NET_ADMIN  # Required for Bluetooth
+      - SYS_ADMIN  # Additional permissions for Bluetooth stack
+    devices:
+      - /dev/bus/usb  # USB Bluetooth adapters
+      - /dev/bus/usb:/dev/bus/usb  # Explicit USB bus mapping
     volumes:
       - ./matter-server-data:/data
-      - /run/dbus:/run/dbus:ro  # For Bluetooth (if needed)
+      - /run/dbus:/run/dbus:rw  # For Bluetooth D-Bus communication (needs write access)
+      - /var/run/dbus:/var/run/dbus:rw  # Additional D-Bus path
+    command: ["--storage-path", "/data", "--bluetooth-adapter", "0", "--log-level", "debug", "--log-level-sdk", "debug"]
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5580/health"]
+      test: ["CMD", "python3", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 5580), 2); s.close()"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
 
   #
   # Matter to MQTT Bridge (v2 with IEEE Address Support)
@@ -94,7 +106,7 @@ services:
     network_mode: host
     depends_on:
       matter-server:
-        condition: service_healthy
+        condition: service_started
     environment:
       - MATTER_SERVER_URL=${MATTER_SERVER_URL:-ws://localhost:5580/ws}
       - MQTT_BROKER=${MQTT_BROKER:-localhost}
