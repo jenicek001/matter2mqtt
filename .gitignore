@@ -1,7 +1,10 @@
 # Ignore runtime data
 matter-server-data/
+otbr-data/
 *.log
 commission_log.txt
+data-backup.tar.gz
+thread-dataset-backup.txt
 
 # Python
 __pycache__/
