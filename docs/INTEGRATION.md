@@ -126,6 +126,57 @@ matter/1/set/onoff/off      # Turn off
 matter/1/set/onoff/toggle   # Toggle state
 ```
 
+## Timestamp Format (ISO 8601 with UTC Timezone)
+
+All timestamps in MQTT messages use **ISO 8601 format with UTC timezone** to ensure accurate time representation across different systems and time zones.
+
+**Format:** `YYYY-MM-DDTHH:MM:SS.ffffff+00:00`
+
+**Example values:**
+```json
+"timestamp": "2026-02-19T14:30:45.123456+00:00"
+"timestamp": "2026-02-19T10:15:22.654321+00:00"
+```
+
+**Why UTC with timezone?**
+- ✅ Unambiguous - `+00:00` explicitly shows UTC offset
+- ✅ ISO 8601 standard - widely supported by parsers
+- ✅ No DST confusion - always UTC
+- ✅ Easy timezone conversion - subtract/add hours as needed
+
+**Parsing in Python:**
+```python
+from datetime import datetime
+
+# Parse timestamp from MQTT message
+timestamp_str = "2026-02-19T14:30:45.123456+00:00"
+dt = datetime.fromisoformat(timestamp_str)
+
+# Convert to local time (example: CET is UTC+1)
+import pytz
+local_tz = pytz.timezone('Europe/Prague')
+local_time = dt.astimezone(local_tz)
+print(f"Local time: {local_time}")  # 2026-02-19 15:30:45.123456+01:00
+```
+
+**Parsing in JavaScript/Node.js:**
+```javascript
+const timestamp = "2026-02-19T14:30:45.123456+00:00";
+const date = new Date(timestamp);
+console.log(date);  // JavaScript automatically handles UTC offset
+```
+
+**HABApp (Python) Usage:**
+```python
+import json
+from datetime import datetime
+
+data = json.loads(event.value)
+timestamp = datetime.fromisoformat(data['timestamp'])  # Parse ISO format
+print(f"Measured at: {timestamp}")
+print(f"Seconds since: {(datetime.now(timezone.utc) - timestamp).total_seconds()}s")
+```
+
 ## HABApp Integration Examples
 
 ### 1. Basic Temperature Monitoring

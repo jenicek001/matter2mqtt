@@ -43,6 +43,10 @@ docker exec otbr ot-ctl dataset active -x
 
 # 7. Monitor MQTT topics to see sensor data
 mosquitto_sub -t 'matter/#' -v
+
+# 8. (Optional) Set timezone for timestamp accuracy
+# Edit .env file or set TZ environment variable
+# export TZ=Europe/Prague  # Change to your timezone
 ```
 
 **Note:** The `setup.sh` script handles all prerequisites including Docker, MQTT broker, IPv6 configuration, and can optionally start the stack. If you already have Docker and dependencies installed, you can skip specific steps with flags (see `./setup.sh --help`).
@@ -174,9 +178,20 @@ MQTT_PORT=1883
 # MQTT Topic Base
 MQTT_BASE_TOPIC=matter
 
+# Timezone for timestamp accuracy (IMPORTANT!)
+# All timestamps in MQTT messages use UTC, but this controls bridge logging
+# See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+TZ=Europe/Prague
+
 # Logging
 LOG_LEVEL=INFO
 ```
+
+**⏰ Timezone Configuration:**
+- `TZ` controls logging timestamps and bridge diagnostics
+- MQTT message timestamps are always **UTC with timezone offset** (e.g., `2026-02-19T14:30:45.123456+00:00`)
+- Set to your local timezone for readable logs: `Europe/Prague`, `America/New_York`, `Asia/Tokyo`, etc.
+- Leave empty or omit to default to `UTC`
 
 **MQTT config precedence:** environment variables override the `mqtt:` section in `bridge/bridge-config.yaml`.
 
@@ -298,9 +313,20 @@ mosquitto_sub -t 'matter/#' -v
 - `matter/<device>/air_quality` → JSON object with `quality`, `value`, `timestamp`.
 - `matter/<device>/battery` → JSON object with `battery`, `unit`, `timestamp`.
 
-Example payloads (single-line JSON):
-`{"temperature": 22.5, "unit": "°C", "timestamp": "2026-02-13T16:05:02.203433"}`
-`{"humidity": 45.2, "unit": "%", "timestamp": "2026-02-13T16:05:02.203433"}`
+**Example payloads (ISO 8601 timestamps with UTC timezone):**
+```json
+{"temperature": 22.5, "unit": "°C", "timestamp": "2026-02-19T15:30:45.123456+00:00"}
+{"humidity": 45.2, "unit": "%", "timestamp": "2026-02-19T15:30:46.654321+00:00"}
+{"quality": "good", "value": 1, "timestamp": "2026-02-19T15:30:47.789012+00:00"}
+{"battery": 85, "unit": "%", "timestamp": "2026-02-19T15:30:48.234567+00:00"}
+```
+
+**⏰ Timestamp Details:**
+- Format: ISO 8601 with UTC timezone (`+00:00`)
+- Always UTC for consistency across timezones
+- Includes microseconds for precision
+- Parse with: `datetime.fromisoformat(timestamp)` (Python 3.7+)
+- See [docs/INTEGRATION.md](docs/INTEGRATION.md) for full timestamp documentation and parsing examples
 
 **Raw attribute stream (if you need full Matter data)**
 - `matter/<device>/cluster_XXXX/attr_YYYY` for every attribute the bridge receives.

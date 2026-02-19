@@ -21,7 +21,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import paho.mqtt.client as mqtt
@@ -57,7 +57,7 @@ class DeviceRegistry:
         device_info = {
             'node_id': node_id,
             'friendly_name': self._get_friendly_name(node_id),
-            'last_seen': datetime.now(),
+            'last_seen': datetime.now(timezone.utc),
             'available': True,
             'info': info or {}
         }
@@ -88,7 +88,7 @@ class DeviceRegistry:
         """Update device availability."""
         if node_id in self.devices:
             self.devices[node_id]['available'] = available
-            self.devices[node_id]['last_seen'] = datetime.now()
+            self.devices[node_id]['last_seen'] = datetime.now(timezone.utc)
 
 
 class MatterMQTTBridge:
@@ -455,7 +455,7 @@ class MatterMQTTBridge:
                 {
                     "temperature": round(temp_c, 1),
                     "unit": "°C",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -467,7 +467,7 @@ class MatterMQTTBridge:
                 {
                     "humidity": round(humidity, 1),
                     "unit": "%",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -487,7 +487,7 @@ class MatterMQTTBridge:
                 {
                     "quality": quality_map.get(value, "unknown"),
                     "value": value,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -498,7 +498,7 @@ class MatterMQTTBridge:
                 {
                     "co2": round(value, 1),
                     "unit": "ppm",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -509,7 +509,7 @@ class MatterMQTTBridge:
                 {
                     "pm25": round(value, 1),
                     "unit": "µg/m³",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -528,7 +528,7 @@ class MatterMQTTBridge:
                 {
                     "battery": battery,
                     "unit": "%",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             )
         
@@ -577,7 +577,7 @@ class MatterMQTTBridge:
                 "event": "device_joined",
                 "node_id": node_id,
                 "friendly_name": device_identifier,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }),
             qos=1
         )
@@ -598,7 +598,7 @@ class MatterMQTTBridge:
                     "event": "device_left",
                     "node_id": node_id,
                     "friendly_name": device['friendly_name'],
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }),
                 qos=1
             )
@@ -622,7 +622,7 @@ class MatterMQTTBridge:
                     "version": "2.0",
                     "devices": devices,
                     "device_count": len(devices),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 
                 self.mqtt_client.publish(
