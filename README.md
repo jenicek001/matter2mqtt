@@ -285,6 +285,29 @@ mosquitto_sub -t 'matter/#' -v
 # matter/living_room_air/availability → online
 ```
 
+### MQTT Message Structure (Practical Summary)
+
+**Topic layout**
+- Base: `matter/<device>/...` where `<device>` is the friendly name from `bridge-config.yaml` (falls back to `node_<id>`).
+- Availability: `matter/<device>/availability` with payload `online` or `offline` (retained).
+- Bridge status: `matter/bridge/state` and `matter/bridge/info`.
+
+**Common sensor payloads (human-friendly topics)**
+- `matter/<device>/temperature` → JSON object with `temperature`, `unit`, `timestamp`.
+- `matter/<device>/humidity` → JSON object with `humidity`, `unit`, `timestamp`.
+- `matter/<device>/air_quality` → JSON object with `quality`, `value`, `timestamp`.
+- `matter/<device>/battery` → JSON object with `battery`, `unit`, `timestamp`.
+
+Example payloads (single-line JSON):
+`{"temperature": 22.5, "unit": "°C", "timestamp": "2026-02-13T16:05:02.203433"}`
+`{"humidity": 45.2, "unit": "%", "timestamp": "2026-02-13T16:05:02.203433"}`
+
+**Raw attribute stream (if you need full Matter data)**
+- `matter/<device>/cluster_XXXX/attr_YYYY` for every attribute the bridge receives.
+- Useful for debugging or building custom mappings; not meant for everyday use.
+
+Full details and command topics are in [docs/INTEGRATION.md](docs/INTEGRATION.md).
+
 ## 📊 Usage
 
 ### Monitor Sensors in Real-Time
