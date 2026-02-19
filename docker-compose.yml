@@ -114,6 +114,7 @@ services:
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - MQTT_BASE_TOPIC=${MQTT_BASE_TOPIC:-matter}
+      - TZ=${TZ:-UTC}
       - CONFIG_FILE=/app/config.yaml
     volumes:
       # Bridge configuration with IEEE address support
